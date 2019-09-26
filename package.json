@@ -1,0 +1,28 @@
+{
+  "name": "fiber",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "babel src --out-dir dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JulitorK/fiber.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JulitorK/fiber/issues"
+  },
+  "homepage": "https://github.com/JulitorK/fiber#readme",
+  "devDependencies": {
+    "@babel/core": "^7.6.2",
+    "@babel/plugin-transform-react-jsx": "^7.3.0",
+    "@babel/preset-env": "^7.6.2",
+    "@babel/cli": "^7.0.0",
+    "prettier": "^1.18.2"
+  }
+}
