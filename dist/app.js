@@ -45,8 +45,6 @@ window.onload = function () {
   }
 
   function createElement(type, config) {
-    console.log('works');
-
     var props = _objectSpread({}, config);
 
     for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
@@ -59,10 +57,6 @@ window.onload = function () {
       return e !== null && e !== undefined;
     }).map(function (e) {
       return e instanceof Object ? e : createTextElement(e);
-    });
-    console.log('{type, props}', {
-      type: type,
-      props: props
     });
     return {
       type: type,

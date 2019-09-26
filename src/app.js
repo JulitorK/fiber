@@ -42,14 +42,12 @@ window.onload = () => {
   }
 
   function createElement(type, config, ...args){
-    console.log('works');
     const props = {...config};
     const hasChildren = args.length > 0;
     const rawChildren = hasChildren ? [...args] : [];
     props.children = rawChildren
       .filter(e => e !== null && e !== undefined)
       .map(e => e instanceof Object ? e : createTextElement(e));
-    console.log('{type, props}', {type, props});
     return {type, props}
   }
 
