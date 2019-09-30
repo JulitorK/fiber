@@ -1,23 +1,25 @@
 /** @jsx createElement */
-window.onload = () => {
+window.addEventListener("load", initRecursive);
+
+function initRecursive() {
   const root = document.getElementById("root");
   const TEXT_ELEMENT = "TEXT ELEMENT";
 
-  let rootInstance = null;
-  function render(element, container) {
-    rootInstance = reconcile(container, rootInstance, element);
+  let domTree = null;
+  function render(element, parent) {
+    domTree = reconcile(parent, domTree, element);
   }
 
-  function reconcile(parentDom, instance, element) {
+  function reconcile(parent, instance, element) {
     if (instance === null) {
       const newInstance = instantiate(element);
-      parentDom.appendChild(newInstance.dom);
+      parent.appendChild(newInstance.dom);
       return newInstance;
     } else if (element === null) {
-      parentDom.removeChild(instance.dom);
+      parent.removeChild(instance.dom);
     } else if (instance.element.type !== element.type) {
       const newInstance = instantiate(element);
-      parentDom.replaceChild(newInstance.dom, instance.dom);
+      parent.replaceChild(newInstance.dom, instance.dom);
       return newInstance;
     } else if (typeof element.type === "string") {
       updateDomProperties(instance.dom, instance.element.props, element.props);
@@ -27,63 +29,30 @@ window.onload = () => {
     } else {
       instance.publicInstance.props = element.props;
       const childElement = instance.publicInstance.render();
-      const oldChildInstance = instance.publicInstance;
-      const childInstance = reconcile(
-        parentDom,
-        oldChildInstance,
-        childElement
-      );
-      instance.dom = childInstance.dom;
+      const oldChildInstance = instance.childInstance;
+      const childInstance = reconcile(parent, oldChildInstance, childElement);
       instance.childInstance = childInstance;
+      instance.dom = childInstance.dom;
       instance.element = element;
       return element;
     }
   }
 
   function reconcileChildren(instance, element) {
-    const dom = instance.dom;
     const instanceChildren = instance.childInstances;
-    const elementChildren = element.props.children || [];
+    const elementChildren = element.props.children;
     const count = Math.max(instanceChildren.length, elementChildren.length);
-    const newChildInstances = [];
+    const reconciledChildren = [];
     for (let i = 0; i < count; i++) {
-      const instanceChild = instanceChildren[i];
-      const elementChild = elementChildren[i];
-      const newChild = reconcile(dom, instanceChild, elementChild);
-      newChildInstances.push(newChild);
+      const child = reconcile(
+        instance.dom,
+        instanceChildren[i],
+        elementChildren[i]
+      );
+      reconciledChildren.push(child);
     }
-    return newChildInstances.filter(Boolean);
-  }
 
-  function instantiate(element) {
-    const {type, props} = element;
-    const isDomElement = typeof type === "string";
-    if (isDomElement) {
-      // Instantiate DOM element
-      const isTextElement = type === TEXT_ELEMENT;
-      const dom = isTextElement
-        ? document.createTextNode("")
-        : document.createElement(type);
-
-      updateDomProperties(dom, [], props);
-
-      const childElements = props.children || [];
-      const childInstances = childElements.map(instantiate);
-      const childDoms = childInstances.map(childInstance => childInstance.dom);
-      childDoms.forEach(childDom => dom.appendChild(childDom));
-
-      return { dom, element, childInstances };
-    }  else {
-      // Instantiate component element
-      const instance = {};
-      const publicInstance = createPublicInstance(element, instance);
-      const childElement = publicInstance.render();
-      const childInstance = instantiate(childElement);
-      const dom = childInstance.dom;
-
-      Object.assign(instance, { dom, element, childInstance, publicInstance });
-      return instance;
-    }
+    return reconciledChildren;
   }
 
   function updateDomProperties(dom, prevProps, nextProps) {
@@ -114,18 +83,66 @@ window.onload = () => {
       .forEach(attribute => (dom[attribute] = nextProps[attribute]));
   }
 
+  function instantiate(element) {
+    const { type, props } = element;
+    const isDomElement = typeof element.type === "string";
+    if (isDomElement) {
+      const dom =
+        type === TEXT_ELEMENT
+          ? document.createTextNode("")
+          : document.createElement(type);
+      updateDomProperties(dom, {}, props);
+
+      const childElements = props.children || [];
+      const childInstances = childElements.map(instantiate);
+      childInstances.forEach(child => dom.appendChild(child.dom));
+      return { dom, element, childInstances };
+    } else {
+      const instance = {};
+      const publicInstance = createPublicInstance(element, instance);
+      const childElement = publicInstance.render();
+      const childInstance = instantiate(childElement);
+      const dom = childInstance.dom;
+      return Object.assign(instance, {
+        dom,
+        publicInstance,
+        childInstance,
+        element
+      });
+    }
+  }
+
   function createElement(type, config, ...args) {
-    const props = { ...config };
-    const hasChildren = args.length > 0;
-    const rawChildren = hasChildren ? [...args] : [];
-    props.children = rawChildren
-      .filter(e => e !== null && e !== undefined)
-      .map(e => (e instanceof Object ? e : createTextElement(e)));
+    const childArray = args || [];
+    const children = childArray
+      .filter(Boolean)
+      .map(child =>
+        child instanceof Object ? child : createTextElement(child)
+      );
+    const props = { ...config, children };
     return { type, props };
   }
 
-  function createTextElement(value) {
-    return createElement(TEXT_ELEMENT, { nodeValue: value });
+  function createTextElement(child) {
+    return { type: TEXT_ELEMENT, props: { nodeValue: child, children: [] } };
+  }
+
+  class Component {
+    constructor(props) {
+      this.props = props;
+      this.state = this.state || {};
+    }
+
+    setState(partial) {
+      this.state = Object.assign({}, this.state, partial);
+      updateInstance(this.__internalInstance);
+    }
+  }
+
+  function updateInstance(internalInstance) {
+    const parent = internalInstance.dom.parentNode;
+    const element = internalInstance.element;
+    reconcile(parent, internalInstance, element);
   }
 
   function createPublicInstance(element, internalInstance) {
@@ -135,42 +152,38 @@ window.onload = () => {
     return publicInstance;
   }
 
-  function updateInstance(internalInstance) {
-    const parentDom = internalInstance.dom.parentNode;
-    const element = internalInstance.element;
-    reconcile(parentDom, internalInstance, element);
-  }
-
-  class Component {
-    constructor(props) {
-      this.props = props;
-      this.state = this.state || {};
-    }
-
-    setState(partialState) {
-      this.state = Object.assign({}, this.state, partialState);
-      updateInstance(this.__internalInstance);
-    }
-  }
-
   class App extends Component {
     constructor(props) {
       super(props);
-      this.state = { test: "does state work?" };
+      this.state = { count: 1 };
     }
+
+    handleClick() {
+      console.log("this.state", this.state);
+      this.setState({ count: ++this.state.count });
+    }
+
     render() {
-      return <div>{this.state.test}</div>;
+      return (
+        <div>
+          <span>count: {this.state.count}</span>
+          <button onClick={() => this.handleClick()}>increment</button>
+        </div>
+      );
     }
   }
 
   const element = (
     <div>
       <div>hai</div>
-      <div>it works</div>
-      <input type="text" value="julitorkaa" />
-      <App />
+      <div>what</div>
+      <div>
+        up
+        <input type="text" value="julitork" />
+        <App>warap yo</App>
+      </div>
     </div>
   );
 
   render(element, root);
-};
+}
