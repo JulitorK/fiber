@@ -1,5 +1,4 @@
-/** @jsx createElement */
-window.addEventListener("load", initRecursive);
+
 
 function initRecursive() {
   const root = document.getElementById("root");
